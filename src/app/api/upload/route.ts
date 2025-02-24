@@ -4,34 +4,30 @@ import fs from 'fs';
 import path from 'path';
 
 export async function POST(request: Request) {
-  console.log('📦 Upload request received');
-  
+  const cookieStore = cookies();
+  const sessionId = cookieStore.get('sessionId')?.value;
+
+  if (!sessionId) {
+    return NextResponse.json({ error: 'Session invalid' }, { status: 400 });
+  }
+
   const formData = await request.formData();
   const file = formData.get('file') as File;
-  const sessionId = cookies().get('sessionId')?.value;
 
-  console.log('Session ID:', sessionId);
-  console.log('File details:', {
-    name: file?.name,
-    type: file?.type,
-    size: file?.size + ' bytes'
-  });
+  const tmpDir = path.join(
+    process.cwd(),
+    'tmp',
+    'videos',
+    sessionId.replace(/:/g, '_')
+  );
+  const videoPath = path.join(tmpDir, 'uploadedVideo.mp4');
 
-  if (!sessionId || !file) {
-    console.error('❌ Missing session ID or file');
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  try {
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    const buffer = Buffer.from(await file.arrayBuffer());
+    fs.writeFileSync(videoPath, buffer);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
-
-  // Save to /tmp/videos/{sessionId}
-  const tmpDir = path.join(process.cwd(), 'tmp', 'videos', sessionId);
-  if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir, { recursive: true });
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const filePath = path.join(tmpDir, file.name);
-  fs.writeFileSync(filePath, buffer);
-  
-  console.log('📥 File saved to:', filePath);
-  return NextResponse.json({ success: true });
 }

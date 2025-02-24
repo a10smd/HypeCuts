@@ -42,7 +42,25 @@ export default function UploadPage() {
       setIsUploading(false);
     }
   };
+  const handleProcess = async () => {
+    try {
+      toast.loading("Processing video...", { id: "processing" });
+      const res = await fetch("/api/process", { method: "POST" });
+      if (!res.ok) throw new Error();
+      toast.success("Processing complete!", { id: "processing" });
 
+      // Auto-download clips
+      const downloadRes = await fetch("/api/download");
+      const blob = await downloadRes.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `hypecuts-${sessionId}.zip`;
+      a.click();
+    } catch (error) {
+      toast.error("Processing failed", { id: "processing" });
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <h1 className="text-3xl font-bold mb-8">Upload Video</h1>
@@ -58,6 +76,12 @@ export default function UploadPage() {
           className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
         />
         {isUploading && <p className="mt-4 text-gray-600">Uploading...</p>}
+        <button
+          onClick={handleProcess}
+          className="mt-4 bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+        >
+          Generate Clips
+        </button>
       </div>
     </div>
   );
